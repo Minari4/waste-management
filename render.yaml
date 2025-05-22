@@ -6,7 +6,7 @@ services:
     startCommand: |
       cd smart-waste-management
       export PYTHONPATH=$PYTHONPATH:$(pwd)
-      gunicorn waste_management.wsgi:application
+      python -m gunicorn waste_management.wsgi:application
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0

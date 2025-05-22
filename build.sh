@@ -5,6 +5,10 @@ set -o errexit
 # Install Python dependencies
 pip install -r smart-waste-management/requirements.txt
 
+# Create necessary directories
+mkdir -p smart-waste-management/staticfiles
+mkdir -p smart-waste-management/media
+
 # Add project directory to PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:$(pwd)/smart-waste-management
 
