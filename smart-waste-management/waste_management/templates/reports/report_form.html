@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{% if edit_mode %}Edit{% else %}New{% endif %} Report{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg">
+                <div class="card-header {% if edit_mode %}bg-primary{% else %}bg-danger{% endif %} text-white">
+                    <h4 class="mb-0">
+                        <i class="bi {% if edit_mode %}bi-pencil{% else %}bi-exclamation-triangle-fill{% endif %} me-2"></i>
+                        {% if edit_mode %}Edit{% else %}New{% endif %} Illegal Dumping Report
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                            <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                            {% if field.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ field.errors|join:", " }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn {% if edit_mode %}btn-primary{% else %}btn-danger{% endif %}">
+                                <i class="bi {% if edit_mode %}bi-save{% else %}bi-send{% endif %} me-1"></i>
+                                {% if edit_mode %}Save Changes{% else %}Submit Report{% endif %}
+                            </button>
+                            <a href="{% if edit_mode %}{% url 'reports:report_detail' report.pk %}{% else %}{% url 'dashboard:dashboard' %}{% endif %}" 
+                               class="btn btn-secondary ms-2">
+                                <i class="bi bi-x-circle me-1"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

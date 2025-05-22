@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Environmental Reminder Card -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h5><i class="bi bi-leaf"></i> Environmental Reminder</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-success mb-0">
+                <i class="bi bi-lightbulb me-2"></i>
+                {{ environmental_reminder }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5><i class="bi bi-speedometer2"></i> Waste Management Overview</h5>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-6">
+                    <div class="card text-white bg-success mb-3 shadow">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Bins</h5>
+                            <p class="card-text display-4">{{ total_bins }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card text-white bg-warning mb-3 shadow">
+                        <div class="card-body">
+                            <h5 class="card-title">Full Bins</h5>
+                            <p class="card-text display-4">{{ full_bins|length }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bin Status Map -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-info text-white">
+            <h5><i class="bi bi-map"></i> Bin Status Map</h5>
+        </div>
+        <div class="card-body">
+            <div id="map" style="height: 400px; border-radius: 4px;"></div>
+        </div>
+    </div>
+
+    {% if user.is_superuser %}
+    <!-- Admin Only Section -->
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Recent Illegal Dumping Reports -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="bi bi-exclamation-triangle"></i> Recent Illegal Dumping Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for report in reports %}
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ report.location }}</h6>
+                                <small>{{ report.reported_at|timesince }} ago</small>
+                            </div>
+                            <p class="mb-1 text-truncate">{{ report.description }}</p>
+                            <small>Status: <span class="badge bg-{% if report.status == 'reported' %}info{% elif report.status == 'investigating' %}warning{% else %}success{% endif %}">
+                                {{ report.get_status_display }}
+                            </span></small>
+                        </a>
+                        {% empty %}
+                        <div class="alert alert-success">
+                            No recent dumping reports!
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize the map
+        const map = L.map('map').setView([0, 0], 2);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add markers for bins
+        const bins = {{ bins|safe }};
+        const markers = [];
+        bins.forEach(bin => {
+            if (bin.latitude && bin.longitude) {
+                const marker = L.marker([bin.latitude, bin.longitude]).addTo(map);
+                marker.bindPopup(`
+                    <strong>${bin.identifier}</strong><br>
+                    Type: ${bin.bin_type}<br>
+                    Status: <span class="badge ${bin.current_status === 'Full' ? 'bg-danger' : 'bg-success'}">${bin.current_status}</span><br>
+                    Location: ${bin.location}
+                `);
+                markers.push([bin.latitude, bin.longitude]);
+            }
+        });
+
+        // Fit map to show all markers if there are any
+        if (markers.length > 0) {
+            const bounds = L.latLngBounds(markers);
+            map.fitBounds(bounds.pad(0.1));
+        }
+
+        // Use Geolocation API to center the map on the user's location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+
+                    // Add a marker for the user's location
+                    const userMarker = L.marker([userLat, userLng], {
+                        icon: L.icon({
+                            iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+                            iconSize: [30, 30]
+                        })
+                    }).addTo(map);
+                    userMarker.bindPopup('<strong>Your Location</strong>');
+
+                    // Center the map on the user's location
+                    map.setView([userLat, userLng], 14);
+                },
+                function (error) {
+                    console.error('Error getting location:', error);
+                }
+            );
+        }
+    });
+</script>
+{% endblock %}

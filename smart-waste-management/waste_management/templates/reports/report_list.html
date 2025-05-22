@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Illegal Dumping Reports{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+            Illegal Dumping Reports
+        </h2>
+        <div class="d-flex gap-2">
+            <div class="input-group">
+                <input type="text" class="form-control" id="searchInput" placeholder="Search reports...">
+                <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <select class="form-select" id="sortSelect" style="width: auto;">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="location">Location (A-Z)</option>
+                <option value="status">Status</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row" id="reportsList">
+        {% for report in reports %}
+        <div class="col-md-6 mb-4 report-item" 
+             data-location="{{ report.location|lower }}" 
+             data-description="{{ report.description|lower }}"
+             data-status="{{ report.status }}"
+             data-date="{{ report.reported_at|date:'Y-m-d H:i:s' }}">
+            <div class="card h-100 shadow-sm hover-shadow">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-geo-alt-fill text-danger me-2"></i>
+                        {{ report.location }}
+                    </h5>
+                    <span class="badge {% if report.status == 'reported' %}bg-warning{% elif report.status == 'investigating' %}bg-info{% else %}bg-success{% endif %}">
+                        {{ report.get_status_display }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex mb-3">
+                        <div class="me-3">
+                            <small class="text-muted d-block">Reported by</small>
+                            <span class="fw-bold">{{ report.reporter }}</span>
+                        </div>
+                        <div>
+                            <small class="text-muted d-block">Reported at</small>
+                            <span class="fw-bold">{{ report.reported_at|date:"F j, Y, g:i a" }}</span>
+                        </div>
+                    </div>
+                    <p class="card-text">{{ report.description|truncatewords:30 }}</p>
+                    {% if report.photo %}
+                    <div class="report-photo mb-3">
+                        <img src="{{ report.photo.url }}" alt="Report Photo" class="img-fluid rounded" 
+                             style="max-height: 150px; width: auto;"
+                             onerror="this.onerror=null; this.src='{% static 'images/placeholder.svg' %}';">
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-transparent">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'reports:report_detail' report.pk %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-eye me-1"></i> View Details
+                        </a>
+                        {% if user.is_superuser %}
+                        <div class="btn-group">
+                            <a href="{% url 'reports:report_delete' report.pk %}" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                No reports found.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const clearSearch = document.getElementById('clearSearch');
+    const sortSelect = document.getElementById('sortSelect');
+    const reportsList = document.getElementById('reportsList');
+    const reports = Array.from(document.querySelectorAll('.report-item'));
+
+    function filterAndSortReports() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const sortBy = sortSelect.value;
+
+        const filteredReports = reports.filter(report => {
+            const location = report.dataset.location;
+            const description = report.dataset.description;
+            return location.includes(searchTerm) || description.includes(searchTerm);
+        });
+
+        filteredReports.sort((a, b) => {
+            switch(sortBy) {
+                case 'newest':
+                    return new Date(b.dataset.date) - new Date(a.dataset.date);
+                case 'oldest':
+                    return new Date(a.dataset.date) - new Date(b.dataset.date);
+                case 'location':
+                    return a.dataset.location.localeCompare(b.dataset.location);
+                case 'status':
+                    return a.dataset.status.localeCompare(b.dataset.status);
+                default:
+                    return 0;
+            }
+        });
+
+        reportsList.innerHTML = '';
+        if (filteredReports.length === 0) {
+            reportsList.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        No reports found matching your search.
+                    </div>
+                </div>
+            `;
+        } else {
+            filteredReports.forEach(report => reportsList.appendChild(report));
+        }
+    }
+
+    searchInput.addEventListener('input', filterAndSortReports);
+    sortSelect.addEventListener('change', filterAndSortReports);
+    clearSearch.addEventListener('click', () => {
+        searchInput.value = '';
+        filterAndSortReports();
+    });
+
+    // Add hover effect to cards
+    reports.forEach(report => {
+        report.addEventListener('mouseenter', function() {
+            this.querySelector('.card').classList.add('shadow');
+        });
+        report.addEventListener('mouseleave', function() {
+            this.querySelector('.card').classList.remove('shadow');
+        });
+    });
+});
+</script>
+
+<style>
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+
+.hover-shadow:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.card-header {
+    border-bottom: none;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.report-photo img {
+    object-fit: cover;
+    width: 100%;
+    border-radius: 0.5rem;
+}
+
+.badge {
+    padding: 0.5em 1em;
+    font-weight: 500;
+}
+
+#searchInput {
+    min-width: 250px;
+}
+
+.btn-group .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.btn-group .btn i {
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}

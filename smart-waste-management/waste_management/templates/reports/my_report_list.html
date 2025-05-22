@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}My Reports{% endblock %}
+
+{% block content %}
+<h2>My Illegal Dumping Reports</h2>
+
+<div class="mb-3 d-flex flex-wrap align-items-center gap-3">
+    <a href="{% url 'reports:my_report_create' %}" class="btn btn-success">Add Report</a>
+</div>
+
+<div id="myReportList" class="list-group mt-3">
+    {% for report in reports %}
+    <a href="{% url 'reports:report_detail' report.pk %}" class="list-group-item list-group-item-action flex-column align-items-start mb-2 shadow-sm rounded report-item" data-status="{{ report.status }}" data-location="{{ report.location|lower }}" data-description="{{ report.description|lower }}" data-reported-at="{{ report.reported_at|date:'U' }}">
+        <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">{{ report.location }}</h5>
+            <small class="text-muted">{{ report.reported_at|timesince }} ago</small>
+        </div>
+        <p class="mb-1">{{ report.description }}</p>
+        <small>Status: 
+            <span class="badge 
+                {% if report.status == 'reported' %}bg-info
+                {% elif report.status == 'investigating' %}bg-warning
+                {% else %}bg-success
+                {% endif %}">
+                {{ report.get_status_display }}
+            </span>
+        </small>
+    </a>
+    {% empty %}
+    <div class="alert alert-info mt-3">
+        You have not submitted any illegal dumping reports yet.
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

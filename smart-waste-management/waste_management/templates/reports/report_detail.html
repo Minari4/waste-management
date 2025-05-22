@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Report Detail{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <h4 class="mb-0">Illegal Dumping Report</h4>
+                    </div>
+                    {% if user.is_superuser %}
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'reports:report_delete' report.pk %}" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-trash"></i> Delete
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5 class="text-muted mb-3">Report Information</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Location:</strong><br>{{ report.location }}</p>
+                                <p><strong>Reported by:</strong><br>{{ report.reporter }}</p>
+                                <p><strong>Reported at:</strong><br>{{ report.reported_at|date:"F j, Y, g:i a" }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Status:</strong><br>
+                                <span class="badge bg-secondary">{{ report.get_status_display }}</span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <h6 class="text-muted">Description:</h6>
+                            <p class="border-start border-4 border-danger ps-3">{{ report.description }}</p>
+                        </div>
+                    </div>
+
+                    {% if report.photo %}
+                    <div class="mb-4">
+                        <h5 class="text-muted mb-3">Evidence Photo</h5>
+                        <div class="image-container">
+                            <img src="{{ report.photo.url }}" 
+                                 alt="Report Photo" 
+                                 class="img-fluid rounded shadow" 
+                                 style="max-width: 350px; cursor: pointer;"
+                                 onerror="this.onerror=null; this.src='{% static 'images/placeholder.svg' %}'; this.parentElement.querySelector('.small').textContent='Image not available';"
+                                 data-bs-toggle="modal" 
+                                 data-bs-target="#photoModal">
+                            <div class="small text-muted mt-1">Click to enlarge</div>
+                        </div>
+                    </div>
+
+                    <!-- Photo Modal -->
+                    <div class="modal fade" id="photoModal" tabindex="-1" aria-labelledby="photoModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                            <div class="modal-content bg-transparent border-0">
+                                <div class="modal-body p-0">
+                                    <img src="{{ report.photo.url }}" 
+                                         alt="Report Photo" 
+                                         class="img-fluid rounded"
+                                         onerror="this.onerror=null; this.src='{% static 'images/placeholder.svg' %}';">
+                                </div>
+                                <button type="button" class="btn-close position-absolute top-0 end-0 m-3 bg-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if report.latitude and report.longitude %}
+                    <div class="mt-4">
+                        <h5 class="text-muted mb-3">Location on Map</h5>
+                        <div id="reportMap" style="height: 300px; border-radius: 8px; overflow: hidden;">
+                            <div class="loading-spinner d-flex justify-content-center align-items-center h-100">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading map...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-4">
+                        <a href="{% url 'reports:report_list' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Reports
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+{% if report.latitude and report.longitude %}
+<script>
+(function() {
+    document.addEventListener('DOMContentLoaded', function () {
+        const mapContainer = document.getElementById('reportMap');
+        
+        try {
+            const latitude = parseFloat("{{ report.latitude }}");
+            const longitude = parseFloat("{{ report.longitude }}");
+            
+            if (!isFinite(latitude) || !isFinite(longitude) ||
+                latitude < -90 || latitude > 90 ||
+                longitude < -180 || longitude > 180) {
+                throw new Error('Invalid coordinates');
+            }
+
+            const map = L.map('reportMap').setView([latitude, longitude], 16);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            const marker = L.marker([latitude, longitude], {
+                title: 'Reported Location'
+            }).addTo(map);
+
+            marker.bindPopup(`
+                <strong>Reported Location</strong><br>
+                Latitude: ${latitude.toFixed(6)}<br>
+                Longitude: ${longitude.toFixed(6)}
+            `).openPopup();
+
+            window.addEventListener('resize', function() {
+                map.invalidateSize();
+            });
+
+        } catch (error) {
+            console.error('Error initializing map:', error);
+            mapContainer.innerHTML = `
+                <div class="alert alert-danger m-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Unable to load map. Please try refreshing the page.
+                </div>
+            `;
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

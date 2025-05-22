@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}{% if edit_mode %}Edit{% else %}Add New{% endif %} Route{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{% if edit_mode %}Edit{% else %}Add New{% endif %} Route</h1>
+    
+    {% if messages %}
+    <div class="mb-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5>Route Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.name.label_tag }}
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.name.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.description.label_tag }}
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.assigned_to.label_tag }}
+                                {{ form.assigned_to }}
+                                {% if form.assigned_to.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.assigned_to.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.collection_day.label_tag }}
+                                {{ form.collection_day }}
+                                {% if form.collection_day.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.collection_day.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            {{ form.is_active }}
+                            {{ form.is_active.label_tag }}
+                            {% if form.is_active.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.is_active.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5>Route Coordinates</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Point A (Start)</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.point_a_latitude.label_tag }}
+                                {{ form.point_a_latitude }}
+                                {% if form.point_a_latitude.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.point_a_latitude.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.point_a_longitude.label_tag }}
+                                {{ form.point_a_longitude }}
+                                {% if form.point_a_longitude.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.point_a_longitude.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <h6>Point B (End)</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.point_b_latitude.label_tag }}
+                                {{ form.point_b_latitude }}
+                                {% if form.point_b_latitude.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.point_b_latitude.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.point_b_longitude.label_tag }}
+                                {{ form.point_b_longitude }}
+                                {% if form.point_b_longitude.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.point_b_longitude.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <small>
+                                <i class="bi bi-info-circle"></i> Click on the map below to set coordinates automatically
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Map for selecting coordinates -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5>Route Map</h5>
+            </div>
+            <div class="card-body">
+                <div id="map" style="height: 400px;"></div>
+                <div class="mt-2">
+                    <button type="button" id="setPointA" class="btn btn-primary btn-sm me-2">
+                        <i class="bi bi-geo-alt-fill"></i> Set Point A
+                    </button>
+                    <button type="button" id="setPointB" class="btn btn-danger btn-sm">
+                        <i class="bi bi-geo-alt-fill"></i> Set Point B
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between">
+            <a href="{% if edit_mode %}{% url 'routes:route_detail' route.pk %}{% else %}{% url 'routes:route_list' %}{% endif %}" 
+               class="btn btn-secondary">
+                Cancel
+            </a>
+            <button type="submit" class="btn btn-primary">
+                {% if edit_mode %}Update{% else %}Create{% endif %} Route
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize the map
+    const map = L.map('map').setView([14.5995, 120.9842], 13); // Default to Manila
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let markerA = null;
+    let markerB = null;
+    let activeButton = null;
+    
+    // Set initial markers if editing
+    {% if edit_mode %}
+        {% if form.instance.point_a_latitude and form.instance.point_a_longitude %}
+            markerA = L.marker([{{ form.instance.point_a_latitude }}, {{ form.instance.point_a_longitude }}], {
+                draggable: true
+            }).addTo(map).bindPopup('Point A').openPopup();
+            
+            document.getElementById('id_point_a_latitude').value = {{ form.instance.point_a_latitude }};
+            document.getElementById('id_point_a_longitude').value = {{ form.instance.point_a_longitude }};
+        {% endif %}
+        
+        {% if form.instance.point_b_latitude and form.instance.point_b_longitude %}
+            markerB = L.marker([{{ form.instance.point_b_latitude }}, {{ form.instance.point_b_longitude }}], {
+                draggable: true
+            }).addTo(map).bindPopup('Point B').openPopup();
+            
+            document.getElementById('id_point_b_latitude').value = {{ form.instance.point_b_latitude }};
+            document.getElementById('id_point_b_longitude').value = {{ form.instance.point_b_longitude }};
+        {% endif %}
+    {% endif %}
+
+    // Button handlers
+    document.getElementById('setPointA').addEventListener('click', function() {
+        activeButton = 'A';
+        this.classList.add('active');
+        document.getElementById('setPointB').classList.remove('active');
+    });
+    
+    document.getElementById('setPointB').addEventListener('click', function() {
+        activeButton = 'B';
+        this.classList.add('active');
+        document.getElementById('setPointA').classList.remove('active');
+    });
+    //map handlers
+    map.on('click', function (e) {
+        if (!activeButton) {
+            alert('Please select whether you want to set Point A or Point B first');
+            return;
+        }
+        
+        const { lat, lng } = e.latlng;
+        const roundedLat = Math.round(lat * 1000000) / 1000000;
+        const roundedLng = Math.round(lng * 1000000) / 1000000;
+        
+        if (activeButton === 'A') {
+            if (markerA) map.removeLayer(markerA);
+            markerA = L.marker([roundedLat, roundedLng], { draggable: true })
+                .addTo(map)
+                .bindPopup('Point A')
+                .openPopup();
+            
+            document.getElementById('id_point_a_latitude').value = roundedLat;
+            document.getElementById('id_point_a_longitude').value = roundedLng;
+            
+            markerA.on('dragend', function(e) {
+                const newLatLng = e.target.getLatLng();
+                const newRoundedLat = Math.round(newLatLng.lat * 1000000) / 1000000;
+                const newRoundedLng = Math.round(newLatLng.lng * 1000000) / 1000000;
+                document.getElementById('id_point_a_latitude').value = newRoundedLat;
+                document.getElementById('id_point_a_longitude').value = newRoundedLng;
+            });
+        } else {
+            if (markerB) map.removeLayer(markerB);
+            markerB = L.marker([roundedLat, roundedLng], { draggable: true })
+                .addTo(map)
+                .bindPopup('Point B')
+                .openPopup();
+            
+            document.getElementById('id_point_b_latitude').value = roundedLat;
+            document.getElementById('id_point_b_longitude').value = roundedLng;
+            
+            markerB.on('dragend', function(e) {
+                const newLatLng = e.target.getLatLng();
+                const newRoundedLat = Math.round(newLatLng.lat * 1000000) / 1000000;
+                const newRoundedLng = Math.round(newLatLng.lng * 1000000) / 1000000;
+                document.getElementById('id_point_b_latitude').value = newRoundedLat;
+                document.getElementById('id_point_b_longitude').value = newRoundedLng;
+            });
+        }
+        
+        // Fit bounds if both markers exist
+        if (markerA && markerB) {
+            map.fitBounds(L.latLngBounds([
+                markerA.getLatLng(),
+                markerB.getLatLng()
+            ]));
+        }
+    });
+});
+</script>
+
+<style>
+#setPointA.active, #setPointB.active {
+    font-weight: bold;
+    transform: scale(1.05);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if edit_mode %}Edit Bin{% else %}Add New Bin{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h3 class="mb-0">{% if edit_mode %}Edit Bin{% else %}Add New Bin{% endif %}</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Description -->
+                    <p class="text-center mb-4 text-muted">Use the form below to add a new waste bin. Search for a location in Surigao City to automatically set the coordinates.</p>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            {{ form.identifier.label_tag }} {{ form.identifier }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.bin_type.label_tag }} {{ form.bin_type }}
+                        </div>
+                        
+                        <!-- Location Search -->
+                        <div class="mb-3">
+                            <label for="location_search" class="form-label">Search Location in Surigao City</label>
+                            <div class="input-group">
+                                <input type="text" id="location_search" class="form-control" placeholder="Enter a location name, type, or address...">
+                                <button class="btn btn-primary" type="button" id="search_button">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                            </div>
+                            <small class="form-text text-muted">Search by location name, type (e.g., "school", "market"), or address</small>
+                            <div id="search_results" class="list-group mt-2" style="display: none; max-height: 200px; overflow-y: auto;"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.location.label_tag }} {{ form.location }}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.current_status.label_tag }} {{ form.current_status }}
+                        </div>
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea id="id_description" name="description" class="form-control" rows="3" placeholder="Enter a description for the bin...">{{ form.description.value|default_if_none:'' }}</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="id_latitude" class="form-label">Latitude</label>
+                                <input type="text" id="id_latitude" name="latitude" class="form-control" value="{{ form.latitude.value|default_if_none:'' }}" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="id_longitude" class="form-label">Longitude</label>
+                                <input type="text" id="id_longitude" name="longitude" class="form-control" value="{{ form.longitude.value|default_if_none:'' }}" readonly>
+                            </div>
+                        </div>
+                        <div id="map" style="height: 350px; margin-bottom: 20px; border-radius: 8px; overflow: hidden;"></div>
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-success">{% if edit_mode %}Save Changes{% else %}Save{% endif %}</button>
+                            <a href="{% url 'bins:bin_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{% static 'js/offline_locations.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize map centered on Surigao City
+    var defaultLat = 9.8;
+    var defaultLng = 125.5;
+    var map = L.map('map').setView([defaultLat, defaultLng], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var marker = L.marker([defaultLat, defaultLng], {draggable: true}).addTo(map);
+
+    function updateInputs(lat, lng) {
+        document.getElementById('id_latitude').value = lat.toFixed(6);
+        document.getElementById('id_longitude').value = lng.toFixed(6);
+        
+        // Try to find a matching location from our offline database
+        const location = getLocationByCoordinates(lat, lng);
+        if (location) {
+            document.getElementById('id_location').value = location.name;
+            // Show nearby locations as suggestions
+            const nearbyLocations = getNearbyLocations(lat, lng);
+            if (nearbyLocations.length > 0) {
+                const searchResults = document.getElementById('search_results');
+                searchResults.innerHTML = '<div class="list-group-item list-group-item-info">Nearby locations:</div>';
+                nearbyLocations.forEach(nearby => {
+                    const item = document.createElement('button');
+                    item.className = 'list-group-item list-group-item-action';
+                    item.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${nearby.name}</strong><br>
+                                <small class="text-muted">${nearby.type} - ${nearby.address}</small>
+                            </div>
+                            <span class="badge bg-primary">${nearby.type}</span>
+                        </div>
+                    `;
+                    item.addEventListener('click', () => {
+                        map.setView([nearby.lat, nearby.lng], 17);
+                        marker.setLatLng([nearby.lat, nearby.lng]);
+                        updateInputs(nearby.lat, nearby.lng);
+                        document.getElementById('id_location').value = nearby.name;
+                        searchResults.style.display = 'none';
+                    });
+                    searchResults.appendChild(item);
+                });
+                searchResults.style.display = 'block';
+            }
+        }
+    }
+
+    // Location search functionality
+    const searchInput = document.getElementById('location_search');
+    const searchButton = document.getElementById('search_button');
+    const searchResults = document.getElementById('search_results');
+    const locationInput = document.getElementById('id_location');
+
+    function searchLocation() {
+        const query = searchInput.value.trim();
+        if (!query) {
+            searchResults.innerHTML = '<div class="list-group-item">Please enter a location to search.</div>';
+            searchResults.style.display = 'block';
+            return;
+        }
+
+        searchResults.innerHTML = '<div class="list-group-item">Searching...</div>';
+        searchResults.style.display = 'block';
+
+        try {
+            // Use offline search
+            const results = searchOfflineLocations(query);
+
+            if (results.length === 0) {
+                searchResults.innerHTML = `
+                    <div class="list-group-item">
+                        <div class="text-danger">No locations found in Surigao City.</div>
+                        <small class="text-muted">Try searching with different terms or be more specific.</small>
+                    </div>`;
+                return;
+            }
+
+            searchResults.innerHTML = '';
+            results.forEach(result => {
+                const item = document.createElement('button');
+                item.className = 'list-group-item list-group-item-action';
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${result.name}</strong><br>
+                            <small class="text-muted">${result.type} - ${result.address}</small>
+                        </div>
+                        <span class="badge bg-primary">${result.type}</span>
+                    </div>
+                `;
+                item.addEventListener('click', () => {
+                    const lat = result.lat;
+                    const lng = result.lng;
+                    
+                    // Update map and marker
+                    map.setView([lat, lng], 17);
+                    marker.setLatLng([lat, lng]);
+                    updateInputs(lat, lng);
+                    
+                    // Update location input
+                    locationInput.value = result.name;
+                    
+                    // Clear search results
+                    searchResults.style.display = 'none';
+                    searchInput.value = '';
+                });
+                searchResults.appendChild(item);
+            });
+        } catch (error) {
+            console.error('Search error:', error);
+            searchResults.innerHTML = `
+                <div class="list-group-item text-danger">
+                    <div>${error.message}</div>
+                    <small>If the problem persists, try searching with a different location name.</small>
+                </div>`;
+        }
+    }
+
+    // Debounce function to prevent too many searches
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Use debounced search for better performance
+    const debouncedSearch = debounce(searchLocation, 300);
+
+    // Add event listeners for search
+    searchButton.addEventListener('click', searchLocation);
+    searchInput.addEventListener('input', debouncedSearch);
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            searchLocation();
+        }
+    });
+
+    // Map click and marker drag handlers
+    map.on('click', function(e) {
+        marker.setLatLng(e.latlng);
+        updateInputs(e.latlng.lat, e.latlng.lng);
+    });
+
+    marker.on('dragend', function(e) {
+        var latlng = marker.getLatLng();
+        updateInputs(latlng.lat, latlng.lng);
+    });
+
+    // Initialize input values
+    updateInputs(defaultLat, defaultLng);
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    var lat = document.getElementById('id_latitude').value;
+    var lng = document.getElementById('id_longitude').value;
+    var location = document.getElementById('id_location').value;
+    
+    if (!lat || !lng) {
+        e.preventDefault();
+        alert('Please select a location on the map.');
+    } else if (!location) {
+        e.preventDefault();
+        alert('Please enter a location name.');
+    }
+});
+</script>
+{% endblock %}

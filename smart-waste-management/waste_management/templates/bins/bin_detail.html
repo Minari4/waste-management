@@ -1,0 +1,45 @@
+<!-- filepath: c:\Users\USER\Desktop\Smart_Waste_Management\smart-waste-management\waste_management\templates\bins\bin_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}Bin Detail{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Bin Details</h2>
+    <table class="table table-bordered">
+        <tr>
+            <th>Identifier</th>
+            <td>{{ bin.identifier }}</td>
+        </tr>
+        <tr>
+            <th>Type</th>
+            <td>{{ bin.get_bin_type_display }}</td>
+        </tr>
+        <tr>
+            <th>Location</th>
+            <td>{{ bin.location }}</td>
+        </tr>
+        <tr>
+            <th>Latitude</th>
+            <td>{{ bin.latitude }}</td>
+        </tr>
+        <tr>
+            <th>Longitude</th>
+            <td>{{ bin.longitude }}</td>
+        </tr>
+        <tr>
+            <th>Status</th>
+            <td>
+                <span class="badge bg-{% if bin.current_status == 'full' %}danger{% elif bin.current_status == 'half' %}warning{% else %}success{% endif %}">
+                    {{ bin.get_current_status_display }}
+                </span>
+            </td>
+        </tr>
+        <tr>
+            <th>Last Collected</th>
+            <td>{% if bin.last_collected %}{{ bin.last_collected|date:"d M Y, H:i" }}{% else %}Never{% endif %}</td>
+        </tr>
+    </table>
+    <a href="{% url 'bins:bin_list' %}" class="btn btn-secondary">Back to Bin List</a>
+</div>
+{% endblock %}

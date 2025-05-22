@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Collection Routes{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-truck"></i> Collection Routes</h1>
+        {% if user.is_superuser %}
+        <a href="{% url 'routes:route_create' %}" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Create Route
+        </a>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+    <div class="mb-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="bi bi-map"></i> Route Map</h5>
+                </div>
+                <div class="card-body">
+                    <div id="routeMap" style="height: 500px; background-color: #eee; border-radius: 5px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5><i class="bi bi-list-ul"></i> Route List</h5>
+                </div>
+                <div class="card-body">
+                    {% if routes %}
+                    <div class="list-group">
+                        {% for route in routes %}
+                        <a href="{% url 'routes:route_detail' route.pk %}" 
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ route.name }}</strong>
+                                <div class="text-muted small">
+                                    {% if route.point_a_latitude and route.point_a_longitude and route.point_b_latitude and route.point_b_longitude %}
+                                    <i class="bi bi-check-circle-fill text-success"></i> Route set
+                                    {% else %}
+                                    <i class="bi bi-exclamation-triangle-fill text-warning"></i> Missing coordinates
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <span class="badge bg-{% if route.is_active %}success{% else %}warning{% endif %} rounded-pill">
+                                {{ route.bins.count }} bins
+                            </span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">No routes found. Create one to get started!</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const routesData = JSON.parse('{{ routes_json|escapejs }}');
+    const map = L.map('routeMap').setView([14.5995, 120.9842], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Plot each route
+    const bounds = L.latLngBounds();
+    let hasRoutes = false;
+
+    routesData.forEach(route => {
+        // Plot route path if it has bins
+        if (route.path.length > 0) {
+            const polyline = L.polyline(
+                route.path.map(point => [point.latitude, point.longitude]),
+                {color: route.is_active ? 'blue' : 'gray', weight: 3}
+            ).addTo(map);
+
+            route.path.forEach(point => {
+                bounds.extend([point.latitude, point.longitude]);
+            });
+
+            hasRoutes = true;
+        }
+
+        // Plot start/end points if they exist
+        if (route.point_a && route.point_b) {
+            const startIcon = L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+                iconSize: [25, 35],
+                iconAnchor: [12, 35]
+            });
+
+            const endIcon = L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684912.png',
+                iconSize: [25, 35],
+                iconAnchor: [12, 35]
+            });
+
+            const startMarker = L.marker(
+                [route.point_a.latitude, route.point_a.longitude],
+                {icon: startIcon}
+            ).addTo(map).bindPopup(`<strong>${route.name}</strong><br>Start Point`);
+
+            const endMarker = L.marker(
+                [route.point_b.latitude, route.point_b.longitude],
+                {icon: endIcon}
+            ).addTo(map).bindPopup(`<strong>${route.name}</strong><br>End Point`);
+
+            bounds.extend([route.point_a.latitude, route.point_a.longitude]);
+            bounds.extend([route.point_b.latitude, route.point_b.longitude]);
+            hasRoutes = true;
+        }
+    });
+
+    if (hasRoutes) {
+        map.fitBounds(bounds.pad(0.2));
+    } else {
+        const alertDiv = L.DomUtil.create('div', 'alert alert-info');
+        alertDiv.innerHTML = '<i class="bi bi-info-circle"></i> No route data available. Create routes and set coordinates to see them on the map.';
+        alertDiv.style.position = 'absolute';
+        alertDiv.style.top = '10px';
+        alertDiv.style.left = '10px';
+        alertDiv.style.zIndex = '1000';
+        alertDiv.style.width = 'calc(100% - 20px)';
+        map.getContainer().appendChild(alertDiv);
+    }
+});
+</script>
+{% endblock %}

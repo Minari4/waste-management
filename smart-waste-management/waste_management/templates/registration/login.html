@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h3>
+                <i class="bi bi-box-arrow-in-right me-2"></i>Welcome Back
+            </h3>
+            <p>Please login to your account</p>
+        </div>
+        <div class="login-body">
+            {% if form.errors %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Please correct the errors below
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <form method="post" class="needs-validation" novalidate id="loginForm">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="id_username" class="form-label">
+                        <i class="bi bi-person-fill me-1"></i>Username
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-person"></i>
+                        </span>
+                        <input type="text" name="username" class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
+                               id="id_username" placeholder="Enter your username" required
+                               autocomplete="username">
+                        {% if form.username.errors %}
+                        <div class="invalid-feedback">
+                            {{ form.username.errors|join:", " }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="id_password" class="form-label">
+                        <i class="bi bi-key-fill me-1"></i>Password
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-key"></i>
+                        </span>
+                        <input type="password" name="password" class="form-control {% if form.password.errors %}is-invalid{% endif %}" 
+                               id="id_password" placeholder="Enter your password" required
+                               autocomplete="current-password">
+                        <button class="btn toggle-password" type="button" id="togglePassword" aria-label="Toggle password visibility">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        {% if form.password.errors %}
+                        <div class="invalid-feedback">
+                            {{ form.password.errors|join:", " }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rememberMe" name="remember">
+                        <label class="form-check-label" for="rememberMe">
+                            Remember me
+                        </label>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-login btn-lg text-white" id="loginButton">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="login-footer text-center">
+            <p class="mb-0">Don't have an account? 
+                <a href="{% url 'accounts:signup' %}" class="text-success">Sign up here</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('loginForm');
+    const loginButton = document.getElementById('loginButton');
+    const togglePassword = document.querySelector('#togglePassword');
+    const password = document.querySelector('#id_password');
+    const username = document.querySelector('#id_username');
+
+    // Password visibility toggle with animation
+    togglePassword.addEventListener('click', function (e) {
+        const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+        password.setAttribute('type', type);
+        this.querySelector('i').classList.toggle('bi-eye');
+        this.querySelector('i').classList.toggle('bi-eye-slash');
+        
+        // Add a subtle animation to the icon
+        this.querySelector('i').style.transform = 'scale(1.2)';
+        setTimeout(() => {
+            this.querySelector('i').style.transform = 'scale(1)';
+        }, 200);
+    });
+
+    // Input focus effects
+    const inputs = document.querySelectorAll('.form-control');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.closest('.input-group').style.transform = 'translateY(-2px)';
+        });
+        
+        input.addEventListener('blur', function() {
+            this.closest('.input-group').style.transform = 'translateY(0)';
+        });
+    });
+
+    // Form submission with loading state
+    loginForm.addEventListener('submit', function(event) {
+        if (!loginForm.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        } else {
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Logging in...';
+        }
+        loginForm.classList.add('was-validated');
+    });
+
+    // Auto-focus username field
+    username.focus();
+
+    // Add ripple effect to login button
+    loginButton.addEventListener('click', function(e) {
+        if (!loginButton.classList.contains('loading')) {
+            const ripple = document.createElement('div');
+            ripple.classList.add('ripple');
+            this.appendChild(ripple);
+            
+            const rect = this.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ripple.style.left = x + 'px';
+            ripple.style.top = y + 'px';
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        }
+    });
+});
+</script>
+
+<style>
+.login-container {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 450px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    background: white;
+    overflow: hidden;
+}
+
+.login-header {
+    padding: 2rem;
+    text-align: center;
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.login-body {
+    padding: 2rem;
+}
+
+.login-footer {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-top: 1px solid #eee;
+}
+
+.btn-login {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-login:hover {
+    background: linear-gradient(135deg, #218838, #1ba87e);
+    transform: translateY(-1px);
+}
+
+.toggle-password {
+    background: none;
+    border: none;
+    color: #6c757d;
+}
+
+.toggle-password:hover {
+    color: #28a745;
+}
+
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    transform: scale(0);
+    animation: ripple 0.6s linear;
+    pointer-events: none;
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+.shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+</style>
+{% endblock %} 
