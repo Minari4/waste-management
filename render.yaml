@@ -3,7 +3,10 @@ services:
     name: smart-waste-management
     env: python
     buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: cd smart-waste-management && gunicorn waste_management.wsgi:application
+    startCommand: |
+      cd smart-waste-management
+      export PYTHONPATH=$PYTHONPATH:$(pwd)
+      gunicorn waste_management.wsgi:application
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
@@ -13,6 +16,8 @@ services:
         generateValue: true
       - key: WEB_CONCURRENCY
         value: 4
+      - key: PYTHONPATH
+        value: /opt/render/project/src/smart-waste-management
       - key: DATABASE_URL
         fromDatabase:
           name: smart-waste-db
